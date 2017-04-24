@@ -22,6 +22,7 @@
 #define MPACK_INTERNAL 1
 
 #include "mpack-common.h"
+#include "mpack-memory.h"
 
 #if MPACK_DEBUG && MPACK_STDIO
 #include <stdarg.h>
@@ -216,7 +217,7 @@ void mpack_tag_debug_describe(mpack_tag_t tag, char* buffer, size_t buffer_size)
 mpack_error_t mpack_track_init(mpack_track_t* track) {
     track->count = 0;
     track->capacity = MPACK_TRACKING_INITIAL_CAPACITY;
-    track->elements = (mpack_track_element_t*)MPACK_MALLOC(sizeof(mpack_track_element_t) * track->capacity);
+    track->elements = (mpack_track_element_t*) proc_malloc(sizeof(mpack_track_element_t) * track->capacity);
     if (track->elements == NULL)
         return mpack_error_memory;
     return mpack_ok;
@@ -228,7 +229,7 @@ mpack_error_t mpack_track_grow(mpack_track_t* track) {
 
     size_t new_capacity = track->capacity * 2;
 
-    mpack_track_element_t* new_elements = (mpack_track_element_t*)mpack_realloc(track->elements,
+    mpack_track_element_t* new_elements = (mpack_track_element_t*) proc_realloc(track->elements,
             sizeof(mpack_track_element_t) * track->count, sizeof(mpack_track_element_t) * new_capacity);
     if (new_elements == NULL)
         return mpack_error_memory;
@@ -378,7 +379,7 @@ mpack_error_t mpack_track_check_empty(mpack_track_t* track) {
 mpack_error_t mpack_track_destroy(mpack_track_t* track, bool cancel) {
     mpack_error_t error = cancel ? mpack_ok : mpack_track_check_empty(track);
     if (track->elements) {
-        MPACK_FREE(track->elements);
+        proc_free(track->elements);
         track->elements = NULL;
     }
     return error;

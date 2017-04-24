@@ -22,6 +22,7 @@
 #define MPACK_INTERNAL 1
 
 #include "mpack-expect.h"
+#include "mpack-memory.h"
 
 #if MPACK_EXPECT
 
@@ -411,7 +412,7 @@ void* mpack_expect_array_alloc_impl(mpack_reader_t* reader, size_t element_size,
         return NULL;
     }
 
-    void* p = MPACK_MALLOC(element_size * count);
+    void* p = proc_malloc(element_size * count);
     if (p == NULL) {
         mpack_reader_flag_error(reader, mpack_error_memory);
         return NULL;
@@ -555,7 +556,7 @@ char* mpack_expect_cstr_alloc(mpack_reader_t* reader, size_t maxsize) {
     char* str = mpack_expect_cstr_alloc_unchecked(reader, maxsize, &length);
 
     if (str && !mpack_str_check_no_null(str, length)) {
-        MPACK_FREE(str);
+		proc_free(str);
         mpack_reader_flag_error(reader, mpack_error_type);
         return NULL;
     }
@@ -568,7 +569,7 @@ char* mpack_expect_utf8_cstr_alloc(mpack_reader_t* reader, size_t maxsize) {
     char* str = mpack_expect_cstr_alloc_unchecked(reader, maxsize, &length);
 
     if (str && !mpack_utf8_check_no_null(str, length)) {
-        MPACK_FREE(str);
+		proc_free(str);
         mpack_reader_flag_error(reader, mpack_error_type);
         return NULL;
     }

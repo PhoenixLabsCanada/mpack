@@ -22,6 +22,7 @@
 #define MPACK_INTERNAL 1
 
 #include "mpack-writer.h"
+#include "mpack-memory.h"
 
 #if MPACK_WRITER
 
@@ -168,7 +169,7 @@ static void mpack_growable_writer_flush(mpack_writer_t* writer, const char* data
     mpack_log("flush growing buffer size from %i to %i\n", (int)size, (int)new_size);
 
     // grow the buffer
-    char* new_buffer = (char*)mpack_realloc(writer->buffer, used, new_size);
+    char* new_buffer = (char*) proc_realloc(writer->buffer, new_size);
     if (new_buffer == NULL) {
         mpack_writer_flag_error(writer, mpack_error_memory);
         return;
@@ -201,9 +202,9 @@ static void mpack_growable_writer_teardown(mpack_writer_t* writer) {
             // do this so we enforce it ourselves.
             size_t size = (used != 0) ? used : 1;
 
-            char* buffer = (char*)mpack_realloc(writer->buffer, used, size);
+            char* buffer = (char*) proc_realloc(writer->buffer, size);
             if (!buffer) {
-                MPACK_FREE(writer->buffer);
+				proc_free(writer->buffer);
                 mpack_writer_flag_error(writer, mpack_error_memory);
                 return;
             }
@@ -216,7 +217,7 @@ static void mpack_growable_writer_teardown(mpack_writer_t* writer) {
         writer->buffer = NULL;
 
     } else if (writer->buffer) {
-        MPACK_FREE(writer->buffer);
+		proc_free(writer->buffer);
         writer->buffer = NULL;
     }
 
@@ -238,7 +239,7 @@ void mpack_writer_init_growable(mpack_writer_t* writer, char** target_data, size
     growable_writer->target_size = target_size;
 
     size_t capacity = MPACK_BUFFER_SIZE;
-    char* buffer = (char*)MPACK_MALLOC(capacity);
+    char* buffer = (char*) proc_malloc(capacity);
     if (buffer == NULL) {
         mpack_writer_init_error(writer, mpack_error_memory);
         return;
@@ -259,7 +260,7 @@ static void mpack_file_writer_flush(mpack_writer_t* writer, const char* buffer, 
 }
 
 static void mpack_file_writer_teardown(mpack_writer_t* writer) {
-    MPACK_FREE(writer->buffer);
+	proc_free(writer->buffer);
     writer->buffer = NULL;
     writer->context = NULL;
 }
@@ -280,7 +281,7 @@ void mpack_writer_init_stdfile(mpack_writer_t* writer, FILE* file, bool close_wh
     mpack_assert(file != NULL, "file is NULL");
 
     size_t capacity = MPACK_BUFFER_SIZE;
-    char* buffer = (char*)MPACK_MALLOC(capacity);
+    char* buffer = (char*) proc_malloc(capacity);
     if (buffer == NULL) {
         mpack_writer_init_error(writer, mpack_error_memory);
         if (close_when_done) {

@@ -209,16 +209,16 @@ size_t mpack_strlen(const char* s) {
 void* mpack_realloc(void* old_ptr, size_t used_size, size_t new_size) {
     if (new_size == 0) {
         if (old_ptr)
-            MPACK_FREE(old_ptr);
+			proc_free(old_ptr);
         return NULL;
     }
 
-    void* new_ptr = MPACK_MALLOC(new_size);
+    void* new_ptr = proc_malloc(new_size);
     if (new_ptr == NULL)
         return NULL;
 
     mpack_memcpy(new_ptr, old_ptr, used_size);
-    MPACK_FREE(old_ptr);
+	proc_free(old_ptr);
     return new_ptr;
 }
 #endif

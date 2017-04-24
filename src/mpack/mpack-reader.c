@@ -22,6 +22,7 @@
 #define MPACK_INTERNAL 1
 
 #include "mpack-reader.h"
+#include "mpack-memory.h"
 
 #if MPACK_READER
 
@@ -124,7 +125,7 @@ static void mpack_file_reader_skip(mpack_reader_t* reader, size_t count) {
 }
 
 static void mpack_file_reader_teardown(mpack_reader_t* reader) {
-    MPACK_FREE(reader->buffer);
+	proc_free(reader->buffer);
     reader->buffer = NULL;
     reader->context = NULL;
     reader->size = 0;
@@ -149,7 +150,7 @@ void mpack_reader_init_stdfile(mpack_reader_t* reader, FILE* file, bool close_wh
     mpack_assert(file != NULL, "file is NULL");
 
     size_t capacity = MPACK_BUFFER_SIZE;
-    char* buffer = (char*)MPACK_MALLOC(capacity);
+    char* buffer = (char*) proc_malloc(capacity);
     if (buffer == NULL) {
         mpack_reader_init_error(reader, mpack_error_memory);
         if (close_when_done) {
@@ -514,7 +515,7 @@ char* mpack_read_bytes_alloc_impl(mpack_reader_t* reader, size_t count, bool nul
         return NULL;
 
     // allocate data
-    char* data = (char*)MPACK_MALLOC(count + (null_terminated ? 1 : 0)); // TODO: can this overflow?
+    char* data = (char*) proc_malloc(count + (null_terminated ? 1 : 0)); // TODO: can this overflow?
     if (data == NULL) {
         mpack_reader_flag_error(reader, mpack_error_memory);
         return NULL;
@@ -525,7 +526,7 @@ char* mpack_read_bytes_alloc_impl(mpack_reader_t* reader, size_t count, bool nul
 
     // report flagged errors
     if (mpack_reader_error(reader) != mpack_ok) {
-        MPACK_FREE(data);
+		proc_free(data);
         if (reader->error_fn)
             reader->error_fn(reader, mpack_reader_error(reader));
         return NULL;

@@ -22,6 +22,7 @@
 #define MPACK_INTERNAL 1
 
 #include "mpack-node.h"
+#include "mpack-memory.h"
 
 #if MPACK_NODE
 
@@ -120,9 +121,9 @@ static bool mpack_tree_reserve_fill(mpack_tree_parser_t* parser, size_t bytes) {
 
         char* new_buffer;
         if (tree->buffer == NULL)
-            new_buffer = (char*)MPACK_MALLOC(new_capacity);
+            new_buffer = (char*) proc_malloc(new_capacity);
         else
-            new_buffer = (char*)mpack_realloc(tree->buffer, tree->data_length, new_capacity);
+            new_buffer = (char*) proc_realloc(tree->buffer, new_capacity);
 
         if (new_buffer == NULL) {
             mpack_tree_flag_error(parser->tree, mpack_error_memory);
@@ -249,7 +250,7 @@ static void mpack_tree_push_stack(mpack_tree_parser_t* parser, mpack_node_data_t
 
         // Replace the stack-allocated parsing stack
         if (!parser->stack_owned) {
-            mpack_level_t* new_stack = (mpack_level_t*)MPACK_MALLOC(sizeof(mpack_level_t) * new_depth);
+            mpack_level_t* new_stack = (mpack_level_t*) proc_malloc(sizeof(mpack_level_t) * new_depth);
             if (!new_stack) {
                 mpack_tree_flag_error(parser->tree, mpack_error_memory);
                 return;
@@ -260,8 +261,8 @@ static void mpack_tree_push_stack(mpack_tree_parser_t* parser, mpack_node_data_t
 
         // Realloc the allocated parsing stack
         } else {
-            mpack_level_t* new_stack = (mpack_level_t*)mpack_realloc(parser->stack,
-                    sizeof(mpack_level_t) * parser->depth, sizeof(mpack_level_t) * new_depth);
+            mpack_level_t* new_stack = (mpack_level_t*) proc_realloc(parser->stack,
+                    sizeof(mpack_level_t) * new_depth);
             if (!new_stack) {
                 mpack_tree_flag_error(parser->tree, mpack_error_memory);
                 return;
@@ -327,7 +328,7 @@ static void mpack_tree_parse_children(mpack_tree_parser_t* parser, mpack_node_da
         mpack_tree_page_t* page;
 
         if (total > MPACK_NODES_PER_PAGE || parser->nodes_left > MPACK_NODES_PER_PAGE / 8) {
-            page = (mpack_tree_page_t*)MPACK_MALLOC(
+            page = (mpack_tree_page_t*) proc_malloc(
                     sizeof(mpack_tree_page_t) + sizeof(mpack_node_data_t) * (total - 1));
             if (page == NULL) {
                 mpack_tree_flag_error(parser->tree, mpack_error_memory);
@@ -339,7 +340,7 @@ static void mpack_tree_parse_children(mpack_tree_parser_t* parser, mpack_node_da
             node->value.children = page->nodes;
 
         } else {
-            page = (mpack_tree_page_t*)MPACK_MALLOC(MPACK_PAGE_ALLOC_SIZE);
+            page = (mpack_tree_page_t*) proc_malloc(MPACK_PAGE_ALLOC_SIZE);
             if (page == NULL) {
                 mpack_tree_flag_error(parser->tree, mpack_error_memory);
                 return;
@@ -746,7 +747,7 @@ static void mpack_tree_cleanup(mpack_tree_t* tree) {
     while (page != NULL) {
         mpack_tree_page_t* next = page->next;
         mpack_log("freeing page %p\n", page);
-        MPACK_FREE(page);
+		proc_free(page);
         page = next;
     }
     tree->next = NULL;
@@ -762,7 +763,7 @@ static void mpack_tree_parser_setup(mpack_tree_parser_t* parser, mpack_tree_t* t
     if (tree->pool == NULL) {
 
         // allocate first page
-        mpack_tree_page_t* page = (mpack_tree_page_t*)MPACK_MALLOC(MPACK_PAGE_ALLOC_SIZE);
+        mpack_tree_page_t* page = (mpack_tree_page_t*) proc_malloc(MPACK_PAGE_ALLOC_SIZE);
         mpack_log("allocated initial page %p of size %i count %i\n",
                 page, (int)MPACK_PAGE_ALLOC_SIZE, (int)MPACK_NODES_PER_PAGE);
         if (page == NULL) {
@@ -852,7 +853,7 @@ void mpack_tree_parse(mpack_tree_t* tree) {
 
     #ifdef MPACK_MALLOC
     if (parser.stack_owned)
-        MPACK_FREE(parser.stack);
+		proc_free(parser.stack);
     #endif
 
     if (mpack_tree_error(tree) == mpack_ok) {
@@ -970,8 +971,8 @@ typedef struct mpack_file_tree_t {
 
 static void mpack_file_tree_teardown(mpack_tree_t* tree) {
     mpack_file_tree_t* file_tree = (mpack_file_tree_t*)tree->context;
-    MPACK_FREE(file_tree->data);
-    MPACK_FREE(file_tree);
+	proc_free(file_tree->data);
+	proc_free(file_tree);
 }
 
 static bool mpack_file_tree_read(mpack_tree_t* tree, mpack_file_tree_t* file_tree, FILE* file, size_t max_bytes) {
@@ -1004,7 +1005,7 @@ static bool mpack_file_tree_read(mpack_tree_t* tree, mpack_file_tree_t* file_tre
     }
 
     // allocate data
-    file_tree->data = (char*)MPACK_MALLOC((size_t)size);
+    file_tree->data = (char*) proc_malloc((size_t)size);
     if (file_tree->data == NULL) {
         mpack_tree_init_error(tree, mpack_error_memory);
         return false;
@@ -1016,7 +1017,7 @@ static bool mpack_file_tree_read(mpack_tree_t* tree, mpack_file_tree_t* file_tre
         size_t read = fread(file_tree->data + total, 1, (size_t)(size - total), file);
         if (read <= 0) {
             mpack_tree_init_error(tree, mpack_error_io);
-            MPACK_FREE(file_tree->data);
+			proc_free(file_tree->data);
             return false;
         }
         total += (long)read;
@@ -1041,7 +1042,7 @@ static bool mpack_tree_file_check_max_bytes(mpack_tree_t* tree, size_t max_bytes
 static void mpack_tree_init_stdfile_noclose(mpack_tree_t* tree, FILE* stdfile, size_t max_bytes) {
 
     // allocate file tree
-    mpack_file_tree_t* file_tree = (mpack_file_tree_t*) MPACK_MALLOC(sizeof(mpack_file_tree_t));
+    mpack_file_tree_t* file_tree = (mpack_file_tree_t*) proc_malloc(sizeof(mpack_file_tree_t));
     if (file_tree == NULL) {
         mpack_tree_init_error(tree, mpack_error_memory);
         return;
@@ -1049,7 +1050,7 @@ static void mpack_tree_init_stdfile_noclose(mpack_tree_t* tree, FILE* stdfile, s
 
     // read all data
     if (!mpack_file_tree_read(tree, file_tree, stdfile, max_bytes)) {
-        MPACK_FREE(file_tree);
+		proc_free(file_tree);
         return;
     }
 
@@ -1088,7 +1089,7 @@ mpack_error_t mpack_tree_destroy(mpack_tree_t* tree) {
 
     #ifdef MPACK_MALLOC
     if (tree->buffer)
-        MPACK_FREE(tree->buffer);
+		proc_free(tree->buffer);
     #endif
 
     if (tree->teardown)
@@ -1401,7 +1402,7 @@ char* mpack_node_data_alloc(mpack_node_t node, size_t maxlen) {
         return NULL;
     }
 
-    char* ret = (char*) MPACK_MALLOC((size_t)node.data->len);
+    char* ret = (char*) proc_malloc((size_t)node.data->len);
     if (ret == NULL) {
         mpack_node_flag_error(node, mpack_error_memory);
         return NULL;
@@ -1437,7 +1438,7 @@ char* mpack_node_cstr_alloc(mpack_node_t node, size_t maxlen) {
         return NULL;
     }
 
-    char* ret = (char*) MPACK_MALLOC((size_t)(node.data->len + 1));
+    char* ret = (char*) proc_malloc((size_t)(node.data->len + 1));
     if (ret == NULL) {
         mpack_node_flag_error(node, mpack_error_memory);
         return NULL;
@@ -1474,7 +1475,7 @@ char* mpack_node_utf8_cstr_alloc(mpack_node_t node, size_t maxlen) {
         return NULL;
     }
 
-    char* ret = (char*) MPACK_MALLOC((size_t)(node.data->len + 1));
+    char* ret = (char*) proc_malloc((size_t)(node.data->len + 1));
     if (ret == NULL) {
         mpack_node_flag_error(node, mpack_error_memory);
         return NULL;
