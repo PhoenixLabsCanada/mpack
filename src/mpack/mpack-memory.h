@@ -1,6 +1,10 @@
 #ifndef MPACK_MEMORY_H
 #define MPACK_MEMORY_H
 
+#include "mpack-common.h"
+
+MPACK_HEADER_START
+
 typedef void* (*mpack_proc_malloc)(size_t);
 typedef void* (*mpack_proc_calloc)(size_t, size_t);
 typedef void* (*mpack_proc_realloc)(void*, size_t);
@@ -15,5 +19,7 @@ extern mpack_proc_malloc proc_malloc;
 extern mpack_proc_calloc proc_calloc;
 extern mpack_proc_realloc proc_realloc;
 extern mpack_proc_free proc_free;
+
+MPACK_HEADER_END
 
 #endif

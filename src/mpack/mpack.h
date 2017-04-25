@@ -34,6 +34,7 @@
 #include "mpack-reader.h"
 #include "mpack-expect.h"
 #include "mpack-node.h"
+#include "mpack-memory.h"
 
 #endif
 
